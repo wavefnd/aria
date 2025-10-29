@@ -3,6 +3,11 @@ name = "aria_core"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "aria_core"
+crate-type = ["staticlib"]
+path = "src/lib.rs"
+
 [dependencies]
 byteorder = "1.5"
 log = "0.4"

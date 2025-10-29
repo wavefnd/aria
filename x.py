@@ -103,6 +103,9 @@ def copy_outputs():
     # Kotlin outputs
     shutil.copy(ROOT / "classlib" / "build" / "libs" / "classlib.jar", LIB_DIR / "aria-rt.jar")
 
+    # Copy all compiled class files to modules/
+    copy_classlib_modules()
+
     # JNI Header
     jni_source = ROOT / "core" / "include" / "jni.h"
     if jni_source.exists():
@@ -129,7 +132,6 @@ BUILD_DATE="{build_date}"
     print(ctext("Created release metadata", GREEN))
 
     add_javac_stub()
-    ensure_java_base_module()
     verify_runtime()
 
     print(ctext(f"AriaJDK directory structure ready at {ARIAJDK_DIR}", GREEN))
@@ -170,16 +172,21 @@ def add_javac_stub():
     else:
         print(ctext("javac stub already exists.", GREEN))
 
-def ensure_java_base_module():
-    print(ctext("\nEnsuring java.base module structure...", WHITE))
-    base_dir = LIB_DIR / "modules" / "java.base" / "java" / "lang"
-    base_dir.mkdir(parents=True, exist_ok=True)
-    object_class = base_dir / "Object.class"
-    if not object_class.exists():
-        object_class.write_bytes(b"\xca\xfe\xba\xbe")  # dummy header
-        print(ctext("Added dummy java.lang.Object.class", GREEN))
-    else:
-        print(ctext("java.base module already present.", GREEN))
+def copy_classlib_modules():
+    print(ctext("\nCopying compiled classlib modules...", WHITE))
+
+    build_classes = ROOT / "classlib" / "build" / "classes" / "kotlin" / "main"
+    if not build_classes.exists():
+        print(ctext("No compiled classlib classes found.", RED))
+        sys.exit(1)
+
+    for class_file in build_classes.rglob("*.class"):
+        relative_path = class_file.relative_to(build_classes)
+        dest_path = LIB_DIR / "modules" / "java.base" / relative_path
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(class_file, dest_path)
+        print(ctext(f"Copied {relative_path}", GREEN))
+
 
 # ============================================================
 # Packaging

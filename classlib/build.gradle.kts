@@ -15,15 +15,20 @@ java {
     }
 }
 
-tasks.jar {
+tasks.named<Jar>("jar") {
     archiveBaseName.set("classlib")
+    archiveVersion.set("") // ✅ 버전 제거
+    archiveFileName.set("classlib.jar") // ✅ 파일 이름 고정
     destinationDirectory.set(file("$buildDir/libs"))
     from(sourceSets.main.get().output)
     manifest {
-        attributes["Implementation-Title"] = "Aria Class Library"
-        attributes["Implementation-Version"] = version
+        attributes(
+            "Implementation-Title" to "Aria Class Library",
+            "Implementation-Version" to version
+        )
     }
 }
+
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.jvmTarget = "17"

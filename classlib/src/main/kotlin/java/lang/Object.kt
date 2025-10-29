@@ -1,1 +1,4 @@
-// lang.Obejct
+package java.lang
+
+class Object {
+}

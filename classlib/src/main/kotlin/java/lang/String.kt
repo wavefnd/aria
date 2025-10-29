@@ -1,1 +1,4 @@
-// lang.String
+package java.lang
+
+class String {
+}

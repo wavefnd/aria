@@ -1,1 +1,4 @@
-// util.HashMap
+package java.util
+
+class HashMap {
+}

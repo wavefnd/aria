@@ -1,1 +1,4 @@
-// io.File
+package java.io
+
+class File {
+}

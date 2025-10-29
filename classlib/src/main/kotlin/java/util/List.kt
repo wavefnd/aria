@@ -1,1 +1,4 @@
-// util.List
+package java.util
+
+class List {
+}
