@@ -2,6 +2,8 @@
 
 package java.lang
 
+import java.io.PrintStream
+
 object System {
     val out = PrintStream()
 
