@@ -4,17 +4,28 @@ pub mod loader;
 pub mod native;
 pub mod runtime;
 
-use bytecode::parser::ClassFile;
+use crate::loader::{class_loader::ClassLoader};
 
 fn main() {
-    let path = "Main.class"; // Test
-    match ClassFile::parse(path) {
+    let mut loader = ClassLoader::new();
+    loader.add_classpath(".");
+
+    match loader.load_class("Main") {
         Ok(class_file) => {
-            println!("✅ Parsed class successfully:");
-            println!("Magic: 0x{:X}", class_file.magic);
-            println!("Version: {}.{}", class_file.major_version, class_file.minor_version);
-            println!("Constant Pool Count: {}", class_file.constant_pool_count);
+            println!("✅ Class loaded successfully!");
+            println!(
+                "Class version: {}.{}",
+                class_file.major_version, class_file.minor_version
+            );
+
+            if let Some(name) = class_file.get_class_name(21) {
+                println!("Class Name (from pool): {}", name);
+            }
+
+            if let Some(super_name) = class_file.get_class_name(2) {
+                println!("Superclass: {}", super_name);
+            }
         }
-        Err(err) => eprintln!("❌ Failed to parse: {}", err),
+        Err(err) => eprintln!("❌ Error loading class: {}", err),
     }
 }
