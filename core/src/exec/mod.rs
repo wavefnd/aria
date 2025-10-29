@@ -1,2 +1,2 @@
-mod interpreter;
-mod instructions;
+pub mod interpreter;
+pub mod instructions;

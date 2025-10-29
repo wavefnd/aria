@@ -17,8 +17,8 @@ java {
 
 tasks.named<Jar>("jar") {
     archiveBaseName.set("classlib")
-    archiveVersion.set("") // ✅ 버전 제거
-    archiveFileName.set("classlib.jar") // ✅ 파일 이름 고정
+    archiveVersion.set("")
+    archiveFileName.set("classlib.jar")
     destinationDirectory.set(file("$buildDir/libs"))
     from(sourceSets.main.get().output)
     manifest {
