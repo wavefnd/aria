@@ -16,10 +16,17 @@ impl ClassReader {
     }
 
     pub fn read_u1(&mut self) -> u8 {
+        if self.position >= self.data.len() {
+        panic!(
+            "Tried to read past end of class file: position={} len={}",
+            self.position, self.data.len()
+        );
+    }
         let val = self.data[self.position];
         self.position += 1;
         val
     }
+
 
     pub fn read_u2(&mut self) -> u16 {
         let bytes = [self.read_u1(), self.read_u1()];
@@ -32,10 +39,24 @@ impl ClassReader {
     }
 
     pub fn skip(&mut self, n: usize) {
+        if self.position + n > self.data.len() {
+            panic!(
+                "Skip out of bounds: tried to skip {} bytes at pos {} but len is {}",
+                n, self.position, self.data.len()
+            );
+        }
         self.position += n;
     }
 
     pub fn has_more(&self) -> bool {
         self.position < self.data.len()
+    }
+
+    pub fn position(&self) -> usize {
+        self.position
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 }

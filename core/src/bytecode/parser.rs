@@ -2,7 +2,7 @@ use super::reader::ClassReader;
 
 pub const JAVA_MAGIC: u32 = 0xCAFEBABE;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ConstantPoolEntry {
     Utf8(String),
     Integer(i32),
@@ -18,7 +18,7 @@ pub enum ConstantPoolEntry {
     Unknown(u8),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClassFile {
     pub magic: u32,
     pub minor_version: u16,
@@ -26,6 +26,8 @@ pub struct ClassFile {
     pub constant_pool_count: u16,
     pub constant_pool: Vec<ConstantPoolEntry>,
     pub methods: Vec<MethodInfo>,
+    pub this_class: u16,
+    pub super_class: u16,
     // pub fields: Vec<FieldInfo>,
     // pub interfaces: Vec<u16>,
     // pub attributes: Vec<AttributeInfo>,
@@ -152,8 +154,23 @@ impl ClassFile {
                     }
                     let code_attr_count = reader.read_u2();
                     for _ in 0..code_attr_count {
+                        if !reader.has_more() {
+                            break;
+                        }
+                    
                         reader.read_u2();
                         let len = reader.read_u4();
+                    
+                        if reader.position() + (len as usize) > reader.len() {
+                            println!(
+                                "⚠️ Code attribute overflow: pos={}, len={}, attr_len={}",
+                                reader.position(),
+                                reader.len(),
+                                len
+                            );
+                            break;
+                        }
+                    
                         reader.skip(len as usize);
                     }
 
@@ -177,8 +194,26 @@ impl ClassFile {
 
         let attributes_count = reader.read_u2();
         for _ in 0..attributes_count {
-            reader.read_u2();
+            if !reader.has_more() {
+                break;
+            }
+        
+            let name_index = reader.read_u2();
+            if !reader.has_more() {
+                break;
+            }
+        
             let attr_len = reader.read_u4();
+            if reader.position() + (attr_len as usize) > reader.len() {
+                println!(
+                    "⚠️ Attribute length overflow: pos={}, len={}, attr_len={}",
+                    reader.position(),
+                    reader.len(),
+                    attr_len
+                );
+                break;
+            }
+        
             reader.skip(attr_len as usize);
         }
 
@@ -188,12 +223,14 @@ impl ClassFile {
             major_version,
             constant_pool_count,
             constant_pool,
+            this_class,
+            super_class,
             methods,
         })
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: u16,
@@ -201,7 +238,7 @@ pub struct MethodInfo {
     pub code: Option<CodeAttribute>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CodeAttribute {
     pub max_stack: u16,
     pub max_locals: u16,
