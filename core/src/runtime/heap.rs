@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, str};
+use std::{collections::HashMap, fmt};
 
 #[derive(Debug, Clone)]
 pub enum HeapValue {
@@ -18,6 +18,24 @@ pub struct ObjectRef {
     pub fields: HashMap<String, HeapValue>,
 }
 
+impl ObjectRef {
+    pub fn new(id: u64, class_name: &str) -> Self {
+        Self {
+            id,
+            class_name: class_name.to_string(),
+            fields: HashMap::new(),
+        }
+    }
+
+    pub fn get_field(&self, name: &str) -> Option<&HeapValue> {
+        self.fields.get(name)
+    }
+
+    pub fn set_field(&mut self, name: &str, value: HeapValue) {
+        self.fields.insert(name.to_string(), value);
+    }
+}
+
 impl fmt::Display for HeapValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -25,8 +43,8 @@ impl fmt::Display for HeapValue {
             HeapValue::Long(v) => write!(f, "{}", v),
             HeapValue::Float(v) => write!(f, "{}", v),
             HeapValue::Double(v) => write!(f, "{}", v),
-            HeapValue::Object(o) => write!(f, "[Object {}]", o.class_name),
-            HeapValue::String(s) => write!(f, "{}", s),
+            HeapValue::Object(o) => write!(f, "[Object {}#{}]", o.class_name, o.id),
+            HeapValue::String(s) => write!(f, "\"{}\"", s),
             HeapValue::Null => write!(f, "null"),
         }
     }
@@ -39,15 +57,21 @@ impl HeapValue {
             HeapValue::Long(v) => *v as i32,
             HeapValue::Float(v) => *v as i32,
             HeapValue::Double(v) => *v as i32,
-            _ => 0,
+            _ => {
+                println!("TypeError: tried to read {:?} as Int", self);
+                0
+            }
         }
     }
 
     pub fn as_long(&self) -> i64 {
         match self {
-            HeapValue::Int(v) => *v as i64,
             HeapValue::Long(v) => *v,
-            _ => 0,
+            HeapValue::Int(v) => *v as i64,
+            _ => {
+                println!("TypeError: tried to read {:?} as Long", self);
+                0
+            }
         }
     }
 
@@ -58,12 +82,20 @@ impl HeapValue {
             _ => HeapValue::Null,
         }
     }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, HeapValue::Null)
+    }
+
+    pub fn is_object(&self) -> bool {
+        matches!(self, HeapValue::Object(_))
+    }
 }
 
 pub struct Heap {
     next_id: u64,
-    objects: HashMap<u64, ObjectRef>,
-    pub string_pool: HashMap<String, u64>,
+    pub(crate) objects: HashMap<u64, ObjectRef>,
+    string_pool: HashMap<String, u64>,
 }
 
 impl Heap {
@@ -78,32 +110,30 @@ impl Heap {
     pub fn alloc_object(&mut self, class_name: &str) -> ObjectRef {
         let id = self.next_id;
         self.next_id += 1;
-        let obj = ObjectRef {
-            id,
-            class_name: class_name.to_string(),
-            fields: HashMap::new(),
-        };
+
+        let obj = ObjectRef::new(id, class_name);
         self.objects.insert(id, obj.clone());
+
+        println!("NEW {} -> ref#{}", class_name, id);
         obj
     }
 
     pub fn alloc_string(&mut self, value: &str) -> HeapValue {
         if let Some(&id) = self.string_pool.get(value) {
-            HeapValue::Object(self.objects.get(&id).unwrap().clone())
-        } else {
-            let obj = self.alloc_object("java/lang/String");
-            self.objects.insert(obj.id, obj.clone());
-            self.string_pool.insert(value.to_string(), obj.id);
-        
-            let object_mut = self.objects.get_mut(&obj.id).unwrap();
-            object_mut.fields.insert(
-                "value".to_string(),
-                HeapValue::String(value.to_string()),
-            );
-        
-            println!("NEW java/lang/String(\"{}\") -> ref#{}", value, obj.id);
-            HeapValue::Object(obj)
+            if let Some(obj) = self.objects.get(&id) {
+                return HeapValue::Object(obj.clone());
+            }
         }
+
+        let mut obj = self.alloc_object("java/lang/String");
+        obj.set_field("value", HeapValue::String(value.to_string()));
+        let id = obj.id;
+
+        self.string_pool.insert(value.to_string(), id);
+        self.objects.insert(id, obj.clone());
+
+        println!("NEW java/lang/String(\"{}\") -> ref#{}", value, id);
+        HeapValue::Object(obj)
     }
 
     pub fn get(&self, id: u64) -> Option<&ObjectRef> {
@@ -112,5 +142,21 @@ impl Heap {
 
     pub fn get_mut(&mut self, id: u64) -> Option<&mut ObjectRef> {
         self.objects.get_mut(&id)
+    }
+
+    pub fn dump_objects(&self) {
+        println!("==== HEAP OBJECTS ====");
+        for (id, obj) in &self.objects {
+            println!("#{}: {} => {:?}", id, obj.class_name, obj.fields);
+        }
+        println!("======================");
+    }
+
+    pub fn dump_strings(&self) {
+        println!("==== STRING POOL ====");
+        for (s, id) in &self.string_pool {
+            println!("\"{}\" -> ref#{}", s, id);
+        }
+        println!("=====================");
     }
 }

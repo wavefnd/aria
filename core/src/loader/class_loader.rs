@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
-
+use std::fs::File;
+use std::io::Read;
 use crate::bytecode::parser::*;
 
 pub struct ClassLoader {
@@ -14,6 +15,25 @@ impl ClassLoader {
         Self {
             search_paths: vec![PathBuf::from(".")],
             loaded_classes: HashMap::new(),
+        }
+    }
+
+    pub fn load_class_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<ClassFile, String> {
+        let path_ref = path.as_ref();
+        if !path_ref.exists() {
+            return Err(format!("Class file not found: {}", path_ref.display()));
+        }
+
+        let mut file = File::open(path_ref)
+            .map_err(|e| format!("Failed to open {}: {}", path_ref.display(), e))?;
+
+        let mut data = Vec::new();
+        file.read_to_end(&mut data)
+            .map_err(|e| format!("Failed to read class file: {}", e))?;
+
+        match ClassFile::parse(path_ref.to_str().unwrap()) {
+            Ok(class) => Ok(class),
+            Err(e) => Err(format!("Failed to parse class file: {}", e)),
         }
     }
 
@@ -30,7 +50,7 @@ impl ClassLoader {
         for base in &self.search_paths {
             let candidate = base.join(&file_path);
             if candidate.exists() {
-                println!("📦 Loading class: {}", candidate.display());
+                println!("Loading class: {}", candidate.display());
                 let class_file = ClassFile::parse(candidate.to_str().unwrap())
                     .map_err(|e| format!("Parse error: {}", e))?;
             
