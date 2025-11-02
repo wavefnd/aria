@@ -101,7 +101,9 @@ def copy_outputs():
     shutil.copy(ROOT / "core" / "target" / "release" / "libaria_core.a", LIB_DIR / "libaria_core.a")
 
     # Kotlin outputs
+    shutil.copy(ROOT / "tools" / "compiler" / "target" / "release" / "aria-javac", BIN_DIR / "javac")
     shutil.copy(ROOT / "classlib" / "build" / "libs" / "classlib.jar", LIB_DIR / "aria-rt.jar")
+    shutil.copy(ROOT / "tools" / "fs" / "build" / "libs" / "jrt-fs.jar", LIB_DIR / "jrt-fs.jar")
 
     # Copy all compiled class files to modules/
     copy_classlib_modules()
@@ -131,10 +133,32 @@ BUILD_DATE="{build_date}"
     (ARIAJDK_DIR / "release").write_text(release_content)
     print(ctext("Created release metadata", GREEN))
 
-    add_javac_stub()
+    add_jdk_signatures()
     verify_runtime()
 
     print(ctext(f"AriaJDK directory structure ready at {ARIAJDK_DIR}", GREEN))
+
+def add_jdk_signatures():
+    print(ctext("\nVerifying JDK module signatures (JDK 17+ layout)...", WHITE))
+
+    jrt_fs = LIB_DIR / "jrt-fs.jar"
+    if not jrt_fs.exists():
+        print(ctext("✗ ERROR: lib/jrt-fs.jar not found!", RED))
+        print(ctext("Run build_kotlin('tools/fs') before packaging.", YELLOW))
+        sys.exit(1)
+    else:
+        print(ctext("Verified lib/jrt-fs.jar exists (from tools/fs)", GREEN))
+
+    conf_dir = ARIAJDK_DIR / "conf"
+    conf_dir.mkdir(exist_ok=True)
+    conf_file = conf_dir / "jvm.conf"
+    if not conf_file.exists():
+        conf_file.write_text("# AriaJDK configuration placeholder\n")
+        print(ctext("Created conf/jvm.conf", GREEN))
+    else:
+        print(ctext("conf/jvm.conf already exists", GREEN))
+
+    print(ctext("Skipped tools.jar (removed since JDK 9, AriaJDK targets 17+)", YELLOW))
 
 # ============================================================
 # Enhancements
@@ -151,26 +175,6 @@ def verify_runtime():
         print(ctext("Runtime responded:\n", GREEN) + ctext(output, WHITE))
     else:
         print(ctext("Runtime did not respond correctly. Check launcher build.", RED))
-
-def add_javac_stub():
-    print(ctext("\nEnsuring javac stub exists...", WHITE))
-    javac_stub = BIN_DIR / ("javac.bat" if os.name == "nt" else "javac")
-    if not javac_stub.exists():
-        content = (
-            "@echo off\n"
-            "echo AriaJDK does not include a Java compiler.\n"
-            "echo Use external javac or kotlinc instead.\n"
-            if os.name == "nt" else
-            "#!/usr/bin/env bash\n"
-            "echo 'AriaJDK does not include a Java compiler.'\n"
-            "echo 'Use external javac or kotlinc instead.'\n"
-        )
-        javac_stub.write_text(content)
-        if os.name != "nt":
-            os.chmod(javac_stub, 0o755)
-        print(ctext(f"Added javac stub at {javac_stub}", GREEN))
-    else:
-        print(ctext("javac stub already exists.", GREEN))
 
 def copy_classlib_modules():
     print(ctext("\nCopying compiled classlib modules...", WHITE))
@@ -244,9 +248,10 @@ def main():
 
     build_rust(ROOT / "core")
     build_kotlin(ROOT / "classlib")
-    build_kotlin(ROOT / "tools" / "compiler")
+    build_kotlin(ROOT / "tools" / "fs")
     build_rust(ROOT / "tools" / "jar")
     build_rust(ROOT / "launcher")
+    build_rust(ROOT / "tools/compiler")
 
     copy_outputs()
     archive_path = make_archive()

@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "2.0.0"
 }
 
-group = "org.aria"
+group = "org.aria.tools"
 version = "0.1.0"
 
 repositories {
@@ -16,19 +16,15 @@ java {
 }
 
 tasks.named<Jar>("jar") {
-    archiveBaseName.set("classlib")
+    archiveBaseName.set("jrt-fs")
     archiveVersion.set("")
-    archiveFileName.set("classlib.jar")
+    archiveFileName.set("jrt-fs.jar")
     destinationDirectory.set(file("$buildDir/libs"))
     from(sourceSets.main.get().output)
     manifest {
         attributes(
-            "Implementation-Title" to "Aria Class Library",
+            "Implementation-Title" to "Aria JRT Filesystem Provider",
             "Implementation-Version" to version
         )
     }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
 }
