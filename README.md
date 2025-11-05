@@ -1,4 +1,11 @@
-# Aria JDK
+# AriaJDK
+AriaJDK is an open-source, high-performance implementation of the Java Development Kit (JDK), built entirely in **Rust** for modern systems.  
+It provides a safe, modular, and efficient runtime environment that adheres to the **Java SE 17** specification.
+
+**AriaJDK introduces a fresh JVM architecture**,
+reimplemented in Rust to deliver memory safety, modularity, and predictable performance.
+
+The standard **Class Library** is implemented in **Kotlin**, offering a modern, expressive foundation for seamless Java and Kotlin interoperability.
 
 ## Intall
 
