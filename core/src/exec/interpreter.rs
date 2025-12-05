@@ -53,6 +53,23 @@ impl Interpreter {
         println!("Execution finished");
     }
 
+    fn count_args(desc: &str) -> usize {
+        let mut count = 0;
+        let mut chars = desc.chars();
+        while let Some(c) = chars.next() {
+            if c == ')' { break; }
+            if c == 'L' {
+                while let Some(ec) = chars.next() { if ec == ';' { break; } }
+                count += 1;
+            } else if c == '[' {
+                continue;
+          } else {
+              count += 1;
+           }
+        }
+       count
+    }
+
     pub fn execute_method(
         &self,
         class_loader: &mut ClassLoader,
@@ -82,31 +99,59 @@ impl Interpreter {
                     Instruction::InvokeStatic(index)
                     | Instruction::InvokeVirtual(index)
                     | Instruction::InvokeSpecial(index) => {
-                        if let Some(entry) = Self::safe_cp_get(class, index) {
-                            if let ConstantPoolEntry::MethodRef {
-                                class_index,
-                                name_and_type_index,
-                            } = entry
-                            {
-                                let target_class = class.get_class_name(*class_index).unwrap_or("<unknown>");
-                                if let Some(ConstantPoolEntry::NameAndType {
-                                                name_index,
-                                                descriptor_index,
-                                            }) = class.constant_pool.get((*name_and_type_index - 1) as usize)
-                                {
-                                    let method_name = class.get_utf8(*name_index).unwrap_or("<unknown>");
-                                    let descriptor = class.get_utf8(*descriptor_index).unwrap_or("<desc>");
-                                    println!("Invoking {}.{}{}", target_class, method_name, descriptor);
+                    if let Some(entry) = Self::safe_cp_get(class, index) {
+                        if let ConstantPoolEntry::MethodRef { class_index, name_and_type_index } = entry {
+                            let _cp_class_name = class.get_class_name(*class_index).unwrap();
+                            let (method_name, descriptor) = class.get_name_and_type(*name_and_type_index).unwrap();
 
-                                    if invoke_native(target_class, method_name, descriptor, frame) {
-                                        continue;
-                                    }
+                            let arg_count = Self::count_args(descriptor); 
+                            
+                            let mut args = Vec::new();
+                            for _ in 0..arg_count {
+                                args.push(frame.pop());
+                            }
+                            args.reverse();
+                            
+                            let object_ref = frame.pop(); // 'this'
 
-                                    if let Ok(target) = class_loader.load_class(target_class) {
-                                        self.execute_method(class_loader, &target, method_name, descriptor, heap);
-                                    } else {
-                                        println!("Could not load target class {}", target_class);
-                                    }
+                            if let HeapValue::Object(obj) = &object_ref {
+                                let real_class_name = &obj.class_name;
+                                
+                                if let Some(target_class) = Self::resolve_method(class_loader, real_class_name, method_name, descriptor) {
+                                    println!("Invoking Virtual: {} on {}", method_name, real_class_name);
+                                    
+                                }
+                            } else {
+                                println!("NullPointerException!");
+                                return None;
+                            }
+                        }
+                    }
+                }
+
+                    Instruction::NewArray(atype_code) => {
+                        let count = frame.pop_int();
+                        if count < 0 {
+                            println!("NegativeArraySizeException");
+                        } else {
+                            use crate::runtime::heap::ArrayType;
+                            let atype = ArrayType::Int;
+                            let arr = heap.alloc_array(count as usize, atype);
+                            frame.push(HeapValue::Array(arr));
+                        }
+                    }
+
+                    Instruction::IAStore => {
+                        let val = frame.pop();
+                        let idx = frame.pop_int();
+                        let arr_ref = frame.pop();
+
+                        if let HeapValue::Array(arr) = arr_ref {
+                            if let Some(target_arr) = heap.get_array_mut(arr.id) {
+                                if idx >= 0 && (idx as usize) < target_arr.content.len() {
+                                    target_arr.content[idx as usize] = val;
+                                } else {
+                                    println!("ArrayIndexOutOfBoundsException");
                                 }
                             }
                         }
@@ -126,6 +171,30 @@ impl Interpreter {
                         Self::exec_instr(current, heap, class, instr);
                     }
                 }
+            }
+        }
+        None
+    }
+
+    fn resolve_method<'a>(
+        loader: &'a mut ClassLoader,
+        class_name: &str,
+        method_name: &str,
+        descriptor: &str
+    ) -> Option<ClassFile> {
+        let current_class = loader.load_class(class_name).ok()?;
+
+        for m in &current_class.methods {
+            let m_name = current_class.get_utf8(m.name_index)?;
+            let m_desc = current_class.get_utf8(m.descriptor_index)?;
+            if m_name == method_name && m_desc == descriptor {
+                return Some(current_class);
+            }
+        }
+
+        if let Some(super_name) = current_class.get_class_name(current_class.super_class) {
+            if super_name != "java/lang/Object" && !super_name.is_empty() {
+                return Self::resolve_method(loader, class_name, method_name, descriptor);
             }
         }
         None
