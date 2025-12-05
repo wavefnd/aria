@@ -320,4 +320,15 @@ impl ClassFile {
             attributes,
         })
     }
+
+    pub fn get_name_and_type(&self, index: u16) -> Option<(&str, &str)> {
+        if let Some(ConstantPoolEntry::NameAndType { name_index, descriptor_index }) =
+            self.constant_pool.get((index - 1) as usize) {
+                let name = self.get_utf8(*name_index)?;
+                let desc = self.get_utf8(*descriptor_index)?;
+                Some((name, desc))
+            } else {
+                None
+            }
+    }
 }

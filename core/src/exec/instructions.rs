@@ -46,6 +46,16 @@ pub enum Instruction {
     New(u16),
     Return,
 
+    //Arrays
+    NewArray(u8),
+    ANewArray(u16),
+    ArrayLength,
+
+    IALoad,
+    IAStore,
+    AALoad,
+    AAStore,
+
     // Fallback
     Unknown(u8),
 }
@@ -161,6 +171,17 @@ impl Instruction {
             0xB6 => Instruction::InvokeVirtual(read_u16!()),
             0xB7 => Instruction::InvokeSpecial(read_u16!()),
             0xB8 => Instruction::InvokeStatic(read_u16!()),
+
+            // --- Arrays ---
+            0xBC => Instruction::NewArray(read_u8!()),
+            0xBD => Instruction::ANewArray(read_u16!()),
+            0xBE => Instruction::ArrayLength,
+            
+            0x2E => Instruction::IALoad,
+            0x32 => Instruction::AALoad,
+            
+            0x4F => Instruction::IAStore,
+            0x53 => Instruction::AAStore,
 
             // --- Return ---
             0xB1 => Instruction::Return,

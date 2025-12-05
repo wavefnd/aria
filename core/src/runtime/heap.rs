@@ -1,5 +1,18 @@
 use std::{collections::HashMap, fmt};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ArrayType {
+    Boolean = 4,
+    Char = 5,
+    Float = 6,
+    Double = 7,
+    Byte = 8,
+    Short = 9,
+    Int = 10,
+    Long = 11,
+    Reference = 0,
+}
+
 #[derive(Debug, Clone)]
 pub enum HeapValue {
     Int(i32),
@@ -7,8 +20,16 @@ pub enum HeapValue {
     Float(f32),
     Double(f64),
     Object(ObjectRef),
+    Array(ArrayRef),
     String(String),
     Null,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayRef {
+    pub id: u64,
+    pub element_type: ArrayType,
+    pub content: Vec<HeapValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +67,7 @@ impl fmt::Display for HeapValue {
             HeapValue::Object(o) => write!(f, "[Object {}#{}]", o.class_name, o.id),
             HeapValue::String(s) => write!(f, "\"{}\"", s),
             HeapValue::Null => write!(f, "null"),
+            HeapValue::Array(arr) => write!(f, "[Array len={}]", arr.content.len()),
         }
     }
 }
@@ -95,6 +117,7 @@ impl HeapValue {
 pub struct Heap {
     next_id: u64,
     pub(crate) objects: HashMap<u64, ObjectRef>,
+    pub(crate) arrays: HashMap<u64, ArrayRef>,
     string_pool: HashMap<String, u64>,
 }
 
@@ -103,6 +126,7 @@ impl Heap {
         Self {
             next_id: 1,
             objects: HashMap::new(),
+            arrays: HashMap::new(),
             string_pool: HashMap::new(),
         }
     }
@@ -136,6 +160,30 @@ impl Heap {
         HeapValue::Object(obj)
     }
 
+    pub fn alloc_array(&mut self, size: usize, etype: ArrayType) -> ArrayRef {
+        let id = self.next_id;
+        self.next_id += 1;
+
+        let default_val = match etype {
+            ArrayType::Reference => HeapValue::Null,
+            _ => HeapValue::Int(0),
+        };
+
+        let arr = ArrayRef {
+            id,
+            element_type: etype,
+            content: vec![default_val; size],
+        };
+
+        self.arrays.insert(id, arr.clone());
+        println!("NEW ARRAY size={} -> ref#{}", size, id);
+        arr
+    }
+
+    pub fn get_array_mut(&mut self, id: u64) -> Option<&mut ArrayRef> {
+        self.arrays.get_mut(&id)
+    }
+ 
     pub fn get(&self, id: u64) -> Option<&ObjectRef> {
         self.objects.get(&id)
     }
