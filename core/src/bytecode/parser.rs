@@ -9,17 +9,46 @@ pub enum ConstantPoolEntry {
     Float(f32),
     Long(i64),
     Double(f64),
-    Class { name_index: u16 },
-    String { string_index: u16 },
-    FieldRef { class_index: u16, name_and_type_index: u16 },
-    MethodRef { class_index: u16, name_and_type_index: u16 },
-    InterfaceMethodRef { class_index: u16, name_and_type_index: u16 },
-    NameAndType { name_index: u16, descriptor_index: u16 },
-    MethodHandle { reference_kind: u8, reference_index: u16 },
-    MethodType { descriptor_index: u16 },
-    InvokeDynamic { bootstrap_method_attr_index: u16, name_and_type_index: u16 },
-    Module { name_index: u16 },
-    Package { name_index: u16 },
+    Class {
+        name_index: u16,
+    },
+    String {
+        string_index: u16,
+    },
+    FieldRef {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    MethodRef {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    InterfaceMethodRef {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    NameAndType {
+        name_index: u16,
+        descriptor_index: u16,
+    },
+    MethodHandle {
+        reference_kind: u8,
+        reference_index: u16,
+    },
+    MethodType {
+        descriptor_index: u16,
+    },
+    InvokeDynamic {
+        bootstrap_method_attr_index: u16,
+        name_and_type_index: u16,
+    },
+    Module {
+        name_index: u16,
+    },
+    Package {
+        name_index: u16,
+    },
+    Unusable,
     Unknown(u8),
 }
 
@@ -119,8 +148,12 @@ impl ClassFile {
                     let low = reader.read_u4() as u64;
                     ConstantPoolEntry::Double(f64::from_bits((high << 32) | low))
                 }
-                7 => ConstantPoolEntry::Class { name_index: reader.read_u2() },
-                8 => ConstantPoolEntry::String { string_index: reader.read_u2() },
+                7 => ConstantPoolEntry::Class {
+                    name_index: reader.read_u2(),
+                },
+                8 => ConstantPoolEntry::String {
+                    string_index: reader.read_u2(),
+                },
                 9 => ConstantPoolEntry::FieldRef {
                     class_index: reader.read_u2(),
                     name_and_type_index: reader.read_u2(),
@@ -148,17 +181,26 @@ impl ClassFile {
                     bootstrap_method_attr_index: reader.read_u2(),
                     name_and_type_index: reader.read_u2(),
                 },
-                19 => ConstantPoolEntry::Module { name_index: reader.read_u2() },
-                20 => ConstantPoolEntry::Package { name_index: reader.read_u2() },
+                19 => ConstantPoolEntry::Module {
+                    name_index: reader.read_u2(),
+                },
+                20 => ConstantPoolEntry::Package {
+                    name_index: reader.read_u2(),
+                },
                 _ => ConstantPoolEntry::Unknown(tag),
             };
 
-            if matches!(entry, ConstantPoolEntry::Long(_) | ConstantPoolEntry::Double(_)) {
+            let is_wide = matches!(
+                entry,
+                ConstantPoolEntry::Long(_) | ConstantPoolEntry::Double(_)
+            );
+            constant_pool.push(entry);
+            if is_wide {
+                constant_pool.push(ConstantPoolEntry::Unusable);
                 i += 2;
             } else {
                 i += 1;
             }
-            constant_pool.push(entry);
         }
 
         // Class info
@@ -322,13 +364,16 @@ impl ClassFile {
     }
 
     pub fn get_name_and_type(&self, index: u16) -> Option<(&str, &str)> {
-        if let Some(ConstantPoolEntry::NameAndType { name_index, descriptor_index }) =
-            self.constant_pool.get((index - 1) as usize) {
-                let name = self.get_utf8(*name_index)?;
-                let desc = self.get_utf8(*descriptor_index)?;
-                Some((name, desc))
-            } else {
-                None
-            }
+        if let Some(ConstantPoolEntry::NameAndType {
+            name_index,
+            descriptor_index,
+        }) = self.constant_pool.get((index - 1) as usize)
+        {
+            let name = self.get_utf8(*name_index)?;
+            let desc = self.get_utf8(*descriptor_index)?;
+            Some((name, desc))
+        } else {
+            None
+        }
     }
 }

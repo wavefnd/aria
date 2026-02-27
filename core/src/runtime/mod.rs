@@ -1,4 +1,4 @@
 pub mod frame;
-pub mod stack;
-pub mod heap;
 pub mod gc;
+pub mod heap;
+pub mod stack;

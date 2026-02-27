@@ -1,3 +1,10 @@
+mod app;
+mod backend;
+mod cli;
+mod config;
+mod toolchain;
+
 fn main() {
-    println!("Hello, world!");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    std::process::exit(app::run(args));
 }

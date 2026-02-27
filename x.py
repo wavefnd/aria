@@ -4,6 +4,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import re
 from pathlib import Path
 import tarfile
 import zipfile
@@ -61,12 +62,34 @@ def run(cmd, cwd=None):
 def check_java():
     print(ctext("\nChecking Java environment...", WHITE))
     java_home = os.environ.get("JAVA_HOME")
-    result = shutil.which("java")
-    if not java_home and not result:
+    java_bin = None
+    if java_home:
+        java_home_bin = Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java")
+        if java_home_bin.exists():
+            java_bin = str(java_home_bin)
+    if not java_bin:
+        java_bin = shutil.which("java")
+    if not java_bin:
         print(ctext("JAVA_HOME is not set and 'java' command not found in PATH.", RED))
         print(ctext("Please install a JDK and set JAVA_HOME before continuing.", YELLOW))
         sys.exit(1)
-    print(ctext("Java environment OK.", GREEN))
+
+    result = subprocess.run([java_bin, "-version"], capture_output=True, text=True)
+    output = (result.stderr or result.stdout or "").strip()
+    if result.returncode != 0:
+        print(ctext("Unable to execute 'java -version'.", RED))
+        if output:
+            print(ctext(output, YELLOW))
+        sys.exit(1)
+
+    match = re.search(r'version\s+"([^"]+)"', output)
+    if not match:
+        print(ctext("Could not parse Java version from 'java -version' output.", RED))
+        print(ctext(output, YELLOW))
+        sys.exit(1)
+
+    detected_version = match.group(1)
+    print(ctext(f"Java environment OK (detected Java {detected_version}).", GREEN))
 
 # ============================================================
 # Build Functions
@@ -80,10 +103,21 @@ def build_kotlin(path):
     gradlew = path / ("gradlew.bat" if os.name == "nt" else "gradlew")
     if not gradlew.exists():
         run(["gradle", "wrapper"], cwd=path)
+    if path.name == "fs":
+        ensure_gradle_wrapper_jar(path)
     if os.name == "nt":
         run([str(gradlew), "build"], cwd=path)
     else:
         run(["./gradlew", "build"], cwd=path)
+
+
+def ensure_gradle_wrapper_jar(path):
+    source = ROOT / "classlib" / "gradle" / "wrapper" / "gradle-wrapper.jar"
+    dest = path / "gradle" / "wrapper" / "gradle-wrapper.jar"
+    if not dest.exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(source, dest)
+        print(ctext(f"Copied gradle-wrapper.jar to {dest}", GREEN))
 
 # ============================================================
 # Output & Packaging
@@ -171,10 +205,13 @@ def verify_runtime():
         sys.exit(1)
     result = subprocess.run([str(java_exec), "-version"], capture_output=True, text=True)
     output = result.stdout.strip() or result.stderr.strip()
-    if result.returncode == 0:
+    if result.returncode == 0 and "AriaJDK" in output:
         print(ctext("Runtime responded:\n", GREEN) + ctext(output, WHITE))
     else:
-        print(ctext("Runtime did not respond correctly. Check launcher build.", RED))
+        print(ctext("Runtime did not respond with an AriaJDK signature.", RED))
+        if output:
+            print(ctext(output, YELLOW))
+        sys.exit(1)
 
 def copy_classlib_modules():
     print(ctext("\nCopying compiled classlib modules...", WHITE))
