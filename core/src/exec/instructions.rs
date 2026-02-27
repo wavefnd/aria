@@ -5,6 +5,8 @@ pub enum Instruction {
     BiPush(i8),
     SiPush(i16),
     Ldc(u8),
+    LdcW(u16),
+    Ldc2W(u16),
 
     ILoad(u8),
     IStore(u8),
@@ -32,18 +34,34 @@ pub enum Instruction {
     IfGe(i16),
     IfGt(i16),
     IfLe(i16),
+    IfICmpEq(i16),
+    IfICmpNe(i16),
+    IfICmpLt(i16),
+    IfICmpGe(i16),
+    IfICmpGt(i16),
+    IfICmpLe(i16),
+    IfNull(i16),
+    IfNonNull(i16),
     IInc(u8, i8),
 
     // Field & Method
     GetStatic(u16),
+    PutStatic(u16),
     GetField(u16),
     PutField(u16),
     InvokeVirtual(u16),
     InvokeStatic(u16),
     InvokeSpecial(u16),
+    InvokeInterface(u16),
+    InvokeDynamic(u16),
 
     // Object & Return
     New(u16),
+    IReturn,
+    LReturn,
+    FReturn,
+    DReturn,
+    AReturn,
     Return,
 
     //Arrays
@@ -109,6 +127,8 @@ impl Instruction {
                 Instruction::SiPush((high << 8) | (low & 0xFF))
             }
             0x12 => Instruction::Ldc(read_u8!()),
+            0x13 => Instruction::LdcW(read_u16!()),
+            0x14 => Instruction::Ldc2W(read_u16!()),
 
             // --- Load / Store ---
             0x15 => Instruction::ILoad(read_u8!()),
@@ -162,28 +182,54 @@ impl Instruction {
             0x9C => Instruction::IfGe(read_i16!()),
             0x9D => Instruction::IfGt(read_i16!()),
             0x9E => Instruction::IfLe(read_i16!()),
+            0x9F => Instruction::IfICmpEq(read_i16!()),
+            0xA0 => Instruction::IfICmpNe(read_i16!()),
+            0xA1 => Instruction::IfICmpLt(read_i16!()),
+            0xA2 => Instruction::IfICmpGe(read_i16!()),
+            0xA3 => Instruction::IfICmpGt(read_i16!()),
+            0xA4 => Instruction::IfICmpLe(read_i16!()),
+            0xC6 => Instruction::IfNull(read_i16!()),
+            0xC7 => Instruction::IfNonNull(read_i16!()),
 
             // --- Object / Field / Method ---
             0xBB => Instruction::New(read_u16!()),
             0xB2 => Instruction::GetStatic(read_u16!()),
+            0xB3 => Instruction::PutStatic(read_u16!()),
             0xB4 => Instruction::GetField(read_u16!()),
             0xB5 => Instruction::PutField(read_u16!()),
             0xB6 => Instruction::InvokeVirtual(read_u16!()),
             0xB7 => Instruction::InvokeSpecial(read_u16!()),
             0xB8 => Instruction::InvokeStatic(read_u16!()),
+            0xB9 => {
+                let index = read_u16!();
+                let _count = read_u8!();
+                let _zero = read_u8!();
+                Instruction::InvokeInterface(index)
+            }
+            0xBA => {
+                let index = read_u16!();
+                let _zero1 = read_u8!();
+                let _zero2 = read_u8!();
+                Instruction::InvokeDynamic(index)
+            }
 
             // --- Arrays ---
             0xBC => Instruction::NewArray(read_u8!()),
             0xBD => Instruction::ANewArray(read_u16!()),
             0xBE => Instruction::ArrayLength,
-            
+
             0x2E => Instruction::IALoad,
             0x32 => Instruction::AALoad,
-            
+
             0x4F => Instruction::IAStore,
             0x53 => Instruction::AAStore,
 
             // --- Return ---
+            0xAC => Instruction::IReturn,
+            0xAD => Instruction::LReturn,
+            0xAE => Instruction::FReturn,
+            0xAF => Instruction::DReturn,
+            0xB0 => Instruction::AReturn,
             0xB1 => Instruction::Return,
 
             // --- Fallback ---

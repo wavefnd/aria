@@ -183,7 +183,7 @@ impl Heap {
     pub fn get_array_mut(&mut self, id: u64) -> Option<&mut ArrayRef> {
         self.arrays.get_mut(&id)
     }
- 
+
     pub fn get(&self, id: u64) -> Option<&ObjectRef> {
         self.objects.get(&id)
     }

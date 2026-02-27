@@ -54,10 +54,7 @@ impl Stack {
             for (i, frame) in self.frames.iter().enumerate() {
                 println!(
                     "Frame #{} -> locals: {:?}, stack: {:?}, pc: {}",
-                    i,
-                    frame.local_vars,
-                    frame.operand_stack,
-                    frame.pc
+                    i, frame.local_vars, frame.operand_stack, frame.pc
                 );
             }
         }

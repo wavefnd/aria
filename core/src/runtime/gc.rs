@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use crate::runtime::frame::Frame;
 use crate::runtime::heap::{Heap, HeapValue, ObjectRef};
 use crate::runtime::stack::Stack;
-use crate::runtime::frame::Frame;
+use std::collections::HashSet;
 
 pub struct Gc {
     pub debug_mode: bool,
@@ -72,7 +72,6 @@ impl Gc {
         }
     }
 }
-
 
 impl Heap {
     pub fn object_count(&self) -> usize {

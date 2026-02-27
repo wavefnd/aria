@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read};
 
 #[derive(Debug)]
 pub struct ClassReader {
@@ -12,11 +12,17 @@ impl ClassReader {
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
-        Ok(Self { data: buffer, position: 0 })
+        Ok(Self {
+            data: buffer,
+            position: 0,
+        })
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self { data: bytes, position: 0 }
+        Self {
+            data: bytes,
+            position: 0,
+        }
     }
 
     pub fn read_u1(&mut self) -> u8 {
@@ -52,7 +58,12 @@ impl ClassReader {
                 self.data.len()
             );
         }
-        let bytes = [self.read_u1(), self.read_u1(), self.read_u1(), self.read_u1()];
+        let bytes = [
+            self.read_u1(),
+            self.read_u1(),
+            self.read_u1(),
+            self.read_u1(),
+        ];
         u32::from_be_bytes(bytes)
     }
 
@@ -60,7 +71,9 @@ impl ClassReader {
         if self.remaining() < n {
             panic!(
                 "skip({}) out of bounds: pos={} len={}",
-                n, self.position, self.data.len()
+                n,
+                self.position,
+                self.data.len()
             );
         }
         self.position += n;
@@ -94,10 +107,7 @@ impl ClassReader {
 
     pub fn seek(&mut self, pos: usize) {
         if pos > self.data.len() {
-            panic!(
-                "seek({}) out of bounds: len={}",
-                pos, self.data.len()
-            );
+            panic!("seek({}) out of bounds: len={}", pos, self.data.len());
         }
         self.position = pos;
     }

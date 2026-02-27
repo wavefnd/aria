@@ -1,0 +1,11 @@
+Usage: aria-javac <options> <source files>
+Supported subset (aria backend):
+  -d <directory>                Output directory
+  -cp|-classpath <path>         Classpath (accepted)
+  --release 17                  Source/target level (Java 17 only)
+  -source 17                    Source level (Java 17 only)
+  -target 17                    Target level (Java 17 only)
+  -h, --help, -help, -?         Print this help
+  -version, --version           Print compiler version
+  -fullversion, --full-version  Print full version
+Unsupported options fail fast for consistency.
